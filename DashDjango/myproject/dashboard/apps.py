@@ -88,12 +88,9 @@ import plotly.express as px
 
 
 
+from django.apps import AppConfig
+
 class DashboardConfig(AppConfig):
     name = 'dashboard'
 
-    def ready(self):
-        # Import the Dash app creation function here to avoid circular imports
-        from .dash_app import create_dash_app
-        # Create the Dash app
-        create_dash_app()
 
