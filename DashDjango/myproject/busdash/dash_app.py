@@ -1,16 +1,11 @@
-from django_plotly_dash import DjangoDash
-from dash import dcc, html, Input, Output, State
 import pandas as pd
 import plotly.express as px
+from dash import dcc, html, Input, Output, State
+from django_plotly_dash import DjangoDash
 import os
 
-# Dynamically define the path to the CSV file
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-csv_file_path = os.path.join(BASE_DIR, 'busdetails.csv')
-
-# Verify that the file exists
-if not os.path.exists(csv_file_path):
-    raise FileNotFoundError(f"CSV file not found at path: {csv_file_path}")
+# Define the absolute path to the CSV file (adjust if necessary)
+csv_file_path = os.path.join(os.path.dirname(__file__), 'busdetails.csv')
 
 # Read the CSV file
 df = pd.read_csv(csv_file_path)
@@ -24,6 +19,7 @@ app = DjangoDash('BusDashApp')
 app.layout = html.Div([
     html.H1("Bus Data Dashboard"),
     
+    # Input field to enter Bus ID
     dcc.Input(
         id='bus-id-input',
         type='text',
@@ -31,8 +27,10 @@ app.layout = html.Div([
         style={'margin-bottom': '20px'}
     ),
     
+    # Search button to filter data based on input
     html.Button('Search', id='search-button', n_clicks=0),
     
+    # Date picker to select a date
     dcc.DatePickerSingle(
         id='date-picker-single',
         date='2023-01-01',  # Default date to start
@@ -40,17 +38,22 @@ app.layout = html.Div([
         style={'margin-bottom': '20px', 'margin-left': '10px'}
     ),
     
+    # Back button to return to the overview view
     html.Button('Back', id='back-button', n_clicks=0, style={'display': 'none'}),
     
+    # Graph to display bar chart
     dcc.Graph(id='bar-chart'),
     
+    # Area to display clicked data (Bus ID and Date)
     html.Div(id='click-data', style={'margin-top': '20px'}),
     
-    dcc.Store(id='view-mode', data='overview'),  # Store the current view mode
-    dcc.Store(id='selected-bus-id', data=''),    # Store the current selected bus ID
-    dcc.Store(id='selected-date', data='2023-01-01')  # Store the currently selected date
+    # Store the current view mode and selected data
+    dcc.Store(id='view-mode', data='overview'),
+    dcc.Store(id='selected-bus-id', data=''),
+    dcc.Store(id='selected-date', data='2023-01-01')
 ])
 
+# Callback to update the bar chart and back button
 @app.callback(
     [Output('bar-chart', 'figure'),
      Output('back-button', 'style')],
@@ -67,21 +70,23 @@ def update_bar_chart(search_clicks, selected_date, click_data, back_clicks, bus_
     ctx = dash.callback_context
     triggered = [p['prop_id'] for p in ctx.triggered]
     
-    # Determine if the back button was clicked
+    # Check if the back button was clicked to return to the overview view
     if 'back-button' in triggered:
         view_mode = 'overview'
         return get_initial_view(), {'display': 'none'}
     
+    # Filter data based on selected date
     filtered_df = df[df['Date'] == selected_date]
     
     if view_mode == 'detailed':
+        # Drill down to detailed data for a selected bus
         if click_data:
             bus_id_click = click_data['points'][0]['x']
             month_df = df[(df['BusId'] == bus_id_click) & (df['Date'].str.startswith(stored_date[:7]))]
             fig = px.bar(month_df, x='Date', y='Miles', title=f'Daily Miles for Bus ID {bus_id_click} in {stored_date[:7]}')
-            fig.update_layout(xaxis_title='Date', yaxis
+            fig.update_layout(xaxis_title='Date', yaxis_title='Miles')
             return fig, {'display': 'block'}
-    
+        
     if bus_id:
         filtered_df = filtered_df[filtered_df['BusId'] == str(bus_id)]
         
@@ -100,6 +105,7 @@ def get_initial_view():
     daily_totals = daily_totals.sort_values('BusId')
     return px.bar(daily_totals, x='BusId', y='Miles', color='Date', title=f'Total Miles per Bus per Day on {selected_date}')
 
+# Callback to update view mode (overview or detailed)
 @app.callback(
     [Output('view-mode', 'data'),
      Output('selected-bus-id', 'data'),
@@ -120,6 +126,7 @@ def update_view_mode(click_data, back_clicks, view_mode):
         return 'overview', '', ''
     return view_mode, '', ''
 
+# Callback to display the data clicked on the bar chart
 @app.callback(
     Output('click-data', 'children'),
     [Input('bar-chart', 'clickData')]
