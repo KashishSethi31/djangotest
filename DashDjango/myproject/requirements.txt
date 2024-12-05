@@ -1,5 +1,3 @@
 django
-pandas 
-dash 
 plotly 
 numpy 
